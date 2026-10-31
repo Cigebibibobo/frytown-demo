@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#0b0e14">
+  <meta name="description" content="油炸小镇 FRYTOWN：十六地块等距美食岛经营沙盒，南门牌楼、顾客流与评分晋升。">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="油炸小镇">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./assets/icon-180.png">
+  <title>油炸小镇 FRYTOWN · 十六地块美食岛</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%230b0e14'/%3E%3Crect x='2' y='3' width='12' height='3' fill='%23e2b04a'/%3E%3Crect x='1' y='6' width='14' height='2' fill='%23ef8a67'/%3E%3Crect x='2' y='8' width='12' height='2' fill='%2391c8b8'/%3E%3Crect x='2' y='10' width='12' height='3' fill='%23f0c98f'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./src/style.css">
+  <script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>
+</head>
+<body>
+  <canvas id="game" aria-label="等距油炸小镇沙盒"></canvas>
+
+  <div id="hud">
+    <header id="topbar">
+      <div class="brand">
+        <div class="brand-badge">ISO</div>
+        <div class="brand-text">
+          <b>油炸小镇</b>
+          <small>FRYTOWN · 小镇经营</small>
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat stat-coin">
+          <span class="ico ico-coin" aria-hidden="true"></span>
+          <div><b id="coins">0</b><small>金币</small></div>
+          <button id="btnCoinAd" class="stat-plus" type="button" aria-label="看广告领取金币" title="看广告领取金币">+</button>
+        </div>
+        <div class="stat stat-review">
+          <span class="ico ico-review" aria-hidden="true"></span>
+          <div><b id="reviewVal">0</b><small id="reviewLevel">Lv.1 评分</small></div>
+        </div>
+        <div class="stat stat-clock">
+          <span class="ico ico-clock" aria-hidden="true"></span>
+          <div><b id="clockVal">08:20</b><small id="dayVal">第 1 天</small></div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="btnSpeed" class="chip speed-chip" type="button" title="游戏速度">1×</button>
+        <button id="btnStore" class="chip" type="button">仓库</button>
+        <button id="btnReview" class="chip" type="button">评分 <span id="reviewCount" class="chip-mini">0/40</span></button>
+        <button id="btnMission" class="chip" type="button">目标 <span id="missionCount" class="chip-mini">0/12</span></button>
+        <button id="btnSound" class="icon-btn" type="button" aria-label="声音开关" title="声音开关">♪</button>
+        <button id="btnMenu" class="icon-btn" type="button" aria-label="菜单" title="菜单">≡</button>
+      </div>
+    </header>
+
+    <aside id="questTracker" aria-label="当前目标">
+      <div class="track-head">
+        <button id="btnQuestToggle" class="track-toggle" type="button" aria-expanded="true" aria-controls="questBody">
+          <span class="track-chevron" aria-hidden="true">▾</span><span>当前目标</span>
+        </button>
+        <button id="btnAllMissions" type="button">全部</button>
+      </div>
+      <div id="questBody" class="quest-body">
+        <div id="questMain" class="quest-main"></div>
+        <div id="questNext" class="quest-next"></div>
+      </div>
+    </aside>
+
+    <aside id="festivalBanner" hidden aria-label="美食节进度">
+      <div class="fest-head"><span>FOOD FESTIVAL</span><em id="festTime">180s</em></div>
+      <div class="fest-title">美食节进行中</div>
+      <div class="fest-bar"><i id="festBar"></i></div>
+      <div class="fest-meta"><span id="festCount">0/12</span><span>达标后晋升并开放新地块</span></div>
+    </aside>
+
+    <aside id="inspector" hidden aria-label="选中建筑"></aside>
+
+    <div id="hint" class="hint">
+      <span class="hint-key">操作</span>
+      <span id="hintText">拖拽空地移动视角 · 双指缩放 · 从下方选择建筑</span>
+      <button id="hintClose" type="button" aria-label="关闭提示">×</button>
+    </div>
+
+    <div id="coach" hidden aria-hidden="true">
+      <div id="coachRing" class="coach-ring"><span class="coach-step">1/3</span></div>
+    </div>
+
+    <!-- Opener. A three-scene pixel cutscene that auto-plays once before the
+         coach marks. The stage is inline SVG so it stays sharp at any size and
+         costs no image requests. -->
+    <section id="prologue" hidden aria-label="开场">
+      <div class="prologue-card">
+        <div class="prologue-art" id="prologueArt" data-scene="0" aria-hidden="true">
+          <div class="pro-scene pro-city">
+            <svg viewBox="0 0 560 214" preserveAspectRatio="xMidYMid slice">
+              <defs>
+                <linearGradient id="citySky" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#08131f" />
+                  <stop offset="1" stop-color="#1a3349" />
+                </linearGradient>
+                <linearGradient id="cityWall" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#0b1119" />
+                  <stop offset="1" stop-color="#141d27" />
+                </linearGradient>
+              </defs>
+              <rect width="560" height="214" fill="url(#cityWall)" />
+              <g class="city-push">
+                <rect x="0" y="0" width="560" height="6" fill="#1b2733" />
+                <rect x="0" y="150" width="560" height="64" fill="#271b14" />
+                <rect x="0" y="150" width="560" height="5" fill="#4a3323" />
+                <rect x="318" y="20" width="208" height="114" fill="#050b12" stroke="#223444" stroke-width="5" />
+                <rect x="329" y="31" width="186" height="92" fill="url(#citySky)" />
+                <g fill="#0d2033">
+                  <rect x="329" y="70" width="30" height="53" />
+                  <rect x="368" y="58" width="22" height="65" />
+                  <rect x="398" y="76" width="36" height="47" />
+                  <rect x="444" y="50" width="18" height="73" />
+                  <rect x="470" y="72" width="26" height="51" />
+                  <rect x="504" y="62" width="11" height="61" />
+                </g>
+                <g fill="#16324a">
+                  <rect x="355" y="82" width="11" height="41" />
+                  <rect x="414" y="88" width="15" height="35" />
+                  <rect x="478" y="84" width="8" height="39" />
+                </g>
+                <g fill="#ffcf7a" opacity=".85">
+                  <rect x="335" y="80" width="3" height="4" />
+                  <rect x="343" y="90" width="3" height="4" />
+                  <rect x="335" y="102" width="3" height="4" />
+                  <rect x="374" y="72" width="3" height="4" />
+                  <rect x="382" y="88" width="3" height="4" />
+                  <rect x="406" y="96" width="3" height="4" />
+                  <rect x="418" y="104" width="3" height="4" />
+                  <rect x="450" y="64" width="3" height="4" />
+                  <rect x="456" y="82" width="3" height="4" />
+                  <rect x="482" y="90" width="3" height="4" />
+                  <rect x="492" y="100" width="3" height="4" />
+                </g>
+                <g class="city-neon">
+                  <rect x="480" y="42" width="6" height="46" fill="#ff5c86" />
+                  <rect x="490" y="54" width="13" height="5" fill="#ff7a9c" />
+                  <rect x="490" y="64" width="9" height="4" fill="#ff7a9c" />
+                </g>
+                <rect x="72" y="88" width="106" height="66" fill="#05090d" stroke="#2c3a46" stroke-width="4" />
+                <rect x="82" y="98" width="86" height="44" fill="#0c1a24" />
+                <rect x="100" y="104" width="50" height="32" fill="#d8d4c4" />
+                <polyline points="100,104 125,121 150,104" fill="none" stroke="#8d8a7d" stroke-width="2" />
+                <rect x="106" y="127" width="22" height="2" fill="#a39f90" />
+                <rect x="128" y="119" width="26" height="12" fill="none" stroke="#d9534f" stroke-width="2" transform="rotate(-8 141 125)" />
+                <text x="141" y="128" fill="#d9534f" font-family="Fusion Pixel, Microsoft YaHei, monospace" font-size="7" text-anchor="middle" transform="rotate(-8 141 125)">未录用</text>
+                <rect x="117" y="154" width="16" height="7" fill="#1b2730" />
+                <rect x="101" y="161" width="48" height="4" fill="#1b2730" />
+                <g>
+                  <rect x="214" y="38" width="46" height="56" fill="#1b2733" stroke="#33424f" stroke-width="2" />
+                  <rect x="218" y="42" width="38" height="48" fill="#cfc7b2" />
+                  <rect x="218" y="42" width="38" height="8" fill="#a8483c" />
+                  <g fill="#8b8474">
+                    <rect x="222" y="54" width="5" height="3" />
+                    <rect x="231" y="54" width="5" height="3" />
+                    <rect x="240" y="54" width="5" height="3" />
+                    <rect x="249" y="54" width="4" height="3" />
+                    <rect x="222" y="62" width="5" height="3" />
+                    <rect x="231" y="62" width="5" height="3" />
+                    <rect x="240" y="62" width="5" height="3" />
+                    <rect x="249" y="62" width="4" height="3" />
+                    <rect x="222" y="70" width="5" height="3" />
+                    <rect x="231" y="70" width="5" height="3" />
+                    <rect x="240" y="70" width="5" height="3" />
+                  </g>
+                  <g stroke="#c05a4a" stroke-width="1.5" opacity=".9">
+                    <path d="M223 56 l8 8 M231 56 l-8 8" />
+                    <path d="M232 64 l8 8 M240 64 l-8 8" />
+                    <path d="M241 72 l8 8 M249 72 l-8 8" />
+                    <path d="M223 78 l8 8 M231 78 l-8 8" />
+                  </g>
+                </g>
+                <rect x="188" y="166" width="76" height="10" fill="#1b242c" />
+                <rect x="192" y="168" width="68" height="2" fill="#2c3a46" />
+                <g fill="#131c22" stroke="#2c3a46" stroke-width="2">
+                  <rect x="196" y="176" width="62" height="38" rx="6" />
+                  <rect x="214" y="182" width="8" height="32" fill="#1d2830" stroke="none" />
+                  <rect x="232" y="182" width="8" height="32" fill="#1d2830" stroke="none" />
+                </g>
+                <rect x="286" y="146" width="34" height="18" fill="#b98446" />
+                <rect x="290" y="140" width="26" height="8" fill="#d5a05a" />
+                <rect x="320" y="152" width="26" height="12" fill="#c48d4c" />
+                <rect x="356" y="142" width="12" height="24" fill="#d9d2c2" />
+                <rect x="358" y="132" width="2" height="14" fill="#d9534f" />
+                <rect x="366" y="132" width="2" height="14" fill="#4f8fd9" />
+                <g fill="#8a5c34">
+                  <rect x="486" y="158" width="58" height="34" rx="2" />
+                  <rect x="494" y="148" width="44" height="16" rx="2" fill="#9a6a3c" />
+                </g>
+                <g fill="#c8a978" opacity=".65">
+                  <rect x="504" y="158" width="22" height="5" />
+                  <rect x="512" y="148" width="10" height="16" />
+                </g>
+                <rect x="30" y="136" width="4" height="30" fill="#39424a" />
+                <polygon points="32,136 15,120 49,120" fill="#4a5560" />
+                <polygon points="32,136 104,168 8,168" fill="#ffcf7a" opacity=".08" />
+                <circle cx="32" cy="136" r="4" fill="#ffd89a" />
+                <rect x="0" y="128" width="44" height="8" fill="#101820" />
+                <rect x="0" y="128" width="9" height="78" fill="#101820" />
+              </g>
+            </svg>
+          </div>
+
+          <div class="pro-scene pro-bus">
+            <svg viewBox="0 0 560 214" preserveAspectRatio="xMidYMid slice">
+              <defs>
+                <linearGradient id="busSky" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#1d2340" />
+                  <stop offset=".55" stop-color="#60405b" />
+                  <stop offset="1" stop-color="#c98358" />
+                </linearGradient>
+                <linearGradient id="busSeat" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#2b3944" />
+                  <stop offset="1" stop-color="#161f26" />
+                </linearGradient>
+                <clipPath id="busClip"><rect x="64" y="42" width="432" height="78" /></clipPath>
+              </defs>
+              <rect width="560" height="214" fill="#10161c" />
+              <g class="bus-push">
+                <rect x="0" y="0" width="560" height="10" fill="#0a1015" />
+                <rect x="0" y="10" width="560" height="16" fill="#161f26" />
+                <g class="bus-rack">
+                  <rect x="96" y="4" width="66" height="18" rx="5" fill="#3f3a33" />
+                  <rect x="100" y="9" width="58" height="4" fill="#55504a" />
+                  <rect x="368" y="6" width="52" height="16" rx="4" fill="#46372f" />
+                  <rect x="372" y="11" width="44" height="3" fill="#5d4a3e" />
+                </g>
+                <rect x="44" y="26" width="472" height="112" rx="12" fill="#070d12" stroke="#2a3540" stroke-width="6" />
+                <rect x="64" y="42" width="432" height="78" fill="url(#busSky)" />
+                <g clip-path="url(#busClip)">
+                  <circle cx="408" cy="82" r="15" fill="#ffd08a" opacity=".8" />
+                  <g class="bus-buildings">
+                    <rect x="64" y="74" width="432" height="46" fill="#241f33" />
+                    <rect x="78" y="52" width="26" height="68" fill="#2c2740" />
+                    <rect x="114" y="64" width="18" height="56" fill="#201c30" />
+                    <rect x="146" y="46" width="30" height="74" fill="#29243b" />
+                    <rect x="192" y="68" width="22" height="52" fill="#1d192a" />
+                    <rect x="440" y="58" width="40" height="62" fill="#221d31" />
+                    <g fill="#ffcf7a" opacity=".65">
+                      <rect x="84" y="60" width="3" height="4" />
+                      <rect x="94" y="76" width="3" height="4" />
+                      <rect x="152" y="56" width="3" height="4" />
+                      <rect x="162" y="74" width="3" height="4" />
+                      <rect x="152" y="92" width="3" height="4" />
+                      <rect x="198" y="78" width="3" height="4" />
+                      <rect x="450" y="68" width="3" height="4" />
+                    </g>
+                  </g>
+                  <g class="bus-fields">
+                    <rect x="56" y="82" width="448" height="40" fill="#3a5540" />
+                    <path d="M64 90 L496 82 L496 120 L64 120 Z" fill="#2d4534" />
+                    <g stroke="#4d7052" stroke-width="2" opacity=".7">
+                      <path d="M64 98 L496 90" />
+                      <path d="M64 107 L496 99" />
+                      <path d="M64 116 L496 108" />
+                    </g>
+                    <g fill="#1b2a20">
+                      <rect x="104" y="102" width="3" height="16" />
+                      <rect x="146" y="100" width="3" height="18" />
+                      <rect x="224" y="98" width="3" height="20" />
+                      <rect x="274" y="96" width="3" height="22" />
+                    </g>
+                    <g fill="#8a7a5a" opacity=".8">
+                      <rect x="356" y="96" width="26" height="14" />
+                      <polygon points="356,96 369,86 382,96" fill="#6d4a3a" />
+                    </g>
+                  </g>
+                  <g class="bus-sea">
+                    <rect x="64" y="76" width="432" height="44" fill="#2a6573" />
+                    <rect x="64" y="78" width="432" height="4" fill="#4b8f99" opacity=".65" />
+                    <g fill="#8fc7c9" opacity=".55">
+                      <rect x="86" y="90" width="22" height="2" />
+                      <rect x="124" y="100" width="14" height="2" />
+                      <rect x="170" y="88" width="26" height="2" />
+                      <rect x="224" y="104" width="18" height="2" />
+                      <rect x="270" y="94" width="30" height="2" />
+                      <rect x="338" y="102" width="16" height="2" />
+                      <rect x="390" y="90" width="24" height="2" />
+                      <rect x="450" y="105" width="20" height="2" />
+                    </g>
+                    <g fill="#1c3a44" opacity=".8">
+                      <rect x="408" y="108" width="16" height="9" />
+                      <polygon points="408,108 416,101 424,108" />
+                    </g>
+                  </g>
+                  <g class="bus-poles" stroke="#121018" stroke-width="3">
+                    <line x1="110" y1="42" x2="110" y2="120" />
+                    <line x1="102" y1="58" x2="124" y2="58" />
+                    <line x1="232" y1="42" x2="232" y2="120" />
+                    <line x1="224" y1="62" x2="250" y2="62" />
+                  </g>
+                  <g fill="#e8dcc2" opacity=".25">
+                    <rect x="90" y="50" width="14" height="1" />
+                    <rect x="300" y="72" width="22" height="1" />
+                    <rect x="360" y="54" width="10" height="1" />
+                  </g>
+                </g>
+                <rect x="272" y="30" width="8" height="104" fill="#1b242c" />
+                <rect x="64" y="42" width="432" height="5" fill="#3a4a56" opacity=".5" />
+                <rect x="0" y="138" width="560" height="76" fill="#0c1217" />
+                <g fill="url(#busSeat)" stroke="#2c3944" stroke-width="3">
+                  <rect x="32" y="152" width="216" height="74" rx="14" />
+                  <rect x="312" y="152" width="216" height="74" rx="14" />
+                </g>
+                <g fill="#222e37">
+                  <rect x="42" y="160" width="196" height="5" rx="2" />
+                  <rect x="322" y="160" width="196" height="5" rx="2" />
+                </g>
+                <g class="bus-bag">
+                  <rect x="104" y="108" width="64" height="52" rx="9" fill="#8a5230" />
+                  <rect x="112" y="99" width="48" height="16" rx="7" fill="#9a5d36" />
+                  <rect x="112" y="126" width="48" height="26" rx="4" fill="#a66a3e" />
+                  <rect x="116" y="132" width="40" height="10" fill="#7a4528" />
+                  <rect x="132" y="118" width="7" height="11" fill="#d9b25a" />
+                  <path d="M114 114 q22 9 44 0" stroke="#62381f" stroke-width="3" fill="none" />
+                  <path d="M108 112 q4 22 0 40" stroke="#6b3d22" stroke-width="3" fill="none" />
+                  <path d="M164 112 q-4 22 0 40" stroke="#6b3d22" stroke-width="3" fill="none" />
+                </g>
+                <g class="bus-coffee">
+                  <rect x="428" y="138" width="18" height="14" rx="3" fill="#d9d2c2" />
+                  <rect x="428" y="132" width="18" height="6" rx="2" fill="#b4a98f" />
+                  <rect x="434" y="124" width="6" height="10" fill="#d9d2c2" />
+                </g>
+                <rect x="284" y="10" width="5" height="196" rx="2" fill="#39454f" />
+                <rect x="285" y="10" width="2" height="196" fill="#55636e" />
+                <g stroke="#39454f" stroke-width="3" fill="none">
+                  <path d="M154 12 v12 a7 7 0 0 0 14 0 V12" />
+                  <path d="M392 12 v12 a7 7 0 0 0 14 0 V12" />
+                </g>
+                <rect x="88" y="0" width="200" height="4" fill="#ffd8a0" opacity=".4" />
+                <polygon points="88,4 288,4 380,138 20,138" fill="#ffd8a0" opacity=".04" />
+              </g>
+            </svg>
+          </div>
+
+          <div class="pro-scene pro-town">
+            <svg viewBox="0 0 560 214" preserveAspectRatio="xMidYMid slice">
+              <defs>
+                <linearGradient id="townSky" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#101d25" />
+                  <stop offset=".68" stop-color="#2c3a3a" />
+                  <stop offset="1" stop-color="#6b5140" />
+                </linearGradient>
+                <radialGradient id="townWarm" cx=".5" cy=".5" r=".5">
+                  <stop offset="0" stop-color="#ffb75c" stop-opacity=".26" />
+                  <stop offset="1" stop-color="#ffb75c" stop-opacity="0" />
+                </radialGradient>
+                <radialGradient id="stallWarm" cx=".5" cy=".5" r=".5">
+                  <stop offset="0" stop-color="#ffb75c" stop-opacity=".3" />
+                  <stop offset="1" stop-color="#ffb75c" stop-opacity="0" />
+                </radialGradient>
+              </defs>
+              <rect width="560" height="214" fill="url(#townSky)" />
+              <g class="town-push">
+                <g fill="#e8dcc2" opacity=".45">
+                  <rect x="64" y="36" width="2" height="2" />
+                  <rect x="152" y="28" width="2" height="2" />
+                  <rect x="286" y="34" width="2" height="2" />
+                  <rect x="344" y="24" width="2" height="2" />
+                  <rect x="470" y="38" width="2" height="2" />
+                  <rect x="516" y="26" width="2" height="2" />
+                </g>
+                <g fill="#162528">
+                  <rect x="0" y="108" width="72" height="52" />
+                  <rect x="470" y="112" width="90" height="48" />
+                  <rect x="486" y="100" width="52" height="60" />
+                </g>
+                <g>
+                  <rect x="4" y="126" width="64" height="34" fill="#3c464a" stroke="#232e31" stroke-width="2" />
+                  <g stroke="#4d585c" stroke-width="2">
+                    <path d="M6 132 H66" />
+                    <path d="M6 139 H66" />
+                    <path d="M6 146 H66" />
+                    <path d="M6 153 H66" />
+                  </g>
+                  <rect x="20" y="130" width="32" height="14" fill="#d6c9ac" transform="rotate(-4 36 137)" />
+                  <text x="36" y="141" fill="#7a3a2c" font-family="Fusion Pixel, Microsoft YaHei, monospace" font-size="9" text-anchor="middle" transform="rotate(-4 36 137)">招租</text>
+                </g>
+                <rect x="0" y="156" width="560" height="58" fill="#24302d" />
+                <rect x="0" y="156" width="560" height="4" fill="#3a4740" />
+                <rect x="0" y="184" width="560" height="2" fill="#2b3834" />
+                <g fill="#2c3a35" opacity=".8">
+                  <rect x="18" y="190" width="26" height="3" />
+                  <rect x="92" y="198" width="34" height="3" />
+                  <rect x="310" y="192" width="22" height="3" />
+                  <rect x="520" y="202" width="24" height="3" />
+                </g>
+                <g>
+                  <rect x="126" y="84" width="16" height="82" fill="#5a3529" />
+                  <rect x="250" y="84" width="16" height="82" fill="#5a3529" />
+                  <rect x="116" y="78" width="160" height="10" fill="#6b4131" />
+                  <rect x="106" y="68" width="180" height="8" fill="#7a4a36" />
+                  <rect x="96" y="58" width="200" height="8" fill="#6b4131" />
+                  <rect x="118" y="88" width="156" height="15" fill="#3a231b" />
+                  <text x="196" y="99" fill="#e8b15a" font-family="Fusion Pixel, Microsoft YaHei, monospace" font-size="12" text-anchor="middle">南门</text>
+                  <rect x="134" y="103" width="124" height="4" fill="#4a2c22" />
+                  <circle cx="146" cy="114" r="6" fill="#ffbf5e" />
+                  <circle cx="254" cy="114" r="6" fill="#ffbf5e" />
+                  <rect x="120" y="164" width="28" height="6" fill="#3a241d" />
+                  <rect x="244" y="164" width="28" height="6" fill="#3a241d" />
+                </g>
+                <rect x="48" y="100" width="6" height="70" fill="#2a3539" />
+                <rect x="36" y="94" width="30" height="6" fill="#2a3539" />
+                <circle cx="50" cy="98" r="8" fill="#ffc978" />
+                <circle cx="50" cy="100" r="26" fill="url(#townWarm)" />
+                <circle cx="446" cy="106" r="46" fill="url(#stallWarm)" />
+                <g>
+                  <rect x="382" y="104" width="124" height="62" fill="#4a3024" />
+                  <rect x="376" y="96" width="136" height="12" fill="#6b4231" />
+                  <g>
+                    <rect x="372" y="80" width="142" height="16" fill="#c95f4a" />
+                    <rect x="386" y="80" width="14" height="16" fill="#e8d6b8" />
+                    <rect x="414" y="80" width="14" height="16" fill="#e8d6b8" />
+                    <rect x="442" y="80" width="14" height="16" fill="#e8d6b8" />
+                    <rect x="470" y="80" width="14" height="16" fill="#e8d6b8" />
+                    <rect x="498" y="80" width="14" height="16" fill="#e8d6b8" />
+                  </g>
+                  <rect x="390" y="112" width="108" height="8" fill="#2e1e18" />
+                  <line x1="394" y1="96" x2="394" y2="104" stroke="#2a1b15" stroke-width="2" />
+                  <circle cx="394" cy="107" r="4" fill="#ffd08a" opacity=".9" />
+                  <rect x="430" y="104" width="32" height="16" rx="3" fill="#1d2324" />
+                  <rect x="426" y="100" width="40" height="6" fill="#2d3738" />
+                  <ellipse cx="446" cy="100" rx="16" ry="4" fill="#0f1414" />
+                  <g class="town-fire">
+                    <rect x="437" y="118" width="18" height="4" fill="#ff9a3c" />
+                    <rect x="442" y="115" width="8" height="3" fill="#ffd36b" />
+                  </g>
+                  <path class="town-steam s1" d="M438 98 c-6 -9 6 -13 0 -22" stroke="#e8e0cc" stroke-width="3" fill="none" opacity=".55" />
+                  <path class="town-steam s2" d="M446 96 c6 -11 -6 -15 0 -24" stroke="#e8e0cc" stroke-width="3" fill="none" opacity=".45" />
+                  <path class="town-steam s3" d="M454 98 c-4 -8 5 -11 0 -19" stroke="#e8e0cc" stroke-width="2" fill="none" opacity=".4" />
+                  <rect x="470" y="108" width="22" height="9" rx="2" fill="#d6b57a" />
+                  <g fill="#f0c45e">
+                    <rect x="473" y="103" width="2" height="6" />
+                    <rect x="477" y="101" width="2" height="8" />
+                    <rect x="481" y="103" width="2" height="6" />
+                    <rect x="485" y="102" width="2" height="7" />
+                  </g>
+                  <rect x="400" y="120" width="50" height="18" fill="#d6b57a" />
+                  <text x="425" y="133" fill="#3a241d" font-family="Fusion Pixel, Microsoft YaHei, monospace" font-size="11" text-anchor="middle">薯条</text>
+                </g>
+                <g fill="#5b402c" stroke="#3a281c" stroke-width="2">
+                  <rect x="514" y="142" width="28" height="22" />
+                  <rect x="518" y="130" width="22" height="14" />
+                </g>
+                <g class="town-you">
+                  <ellipse cx="362" cy="185" rx="17" ry="3" fill="#0d1415" opacity=".45" />
+                  <rect x="352" y="165" width="7" height="20" fill="#1b2430" />
+                  <rect x="364" y="165" width="7" height="20" fill="#1b2430" />
+                  <rect x="350" y="147" width="24" height="22" rx="5" fill="#26313c" />
+                  <rect x="351" y="147" width="22" height="6" rx="3" fill="#31404d" />
+                  <rect x="347" y="152" width="6" height="15" rx="3" fill="#26313c" />
+                  <rect x="371" y="152" width="6" height="15" rx="3" fill="#26313c" />
+                  <circle cx="362" cy="139" r="9" fill="#2a2620" />
+                  <path d="M353 137 q9 -10 18 0 q-3 -3 -9 -3 q-6 0 -9 3" fill="#151a20" />
+                  <path d="M371 149 q3 9 0 17" stroke="#c97a3e" stroke-width="1.5" opacity=".65" fill="none" />
+                  <path d="M368 131 q5 0 5 6" stroke="#c97a3e" stroke-width="1.2" opacity=".5" fill="none" />
+                </g>
+                <g class="town-cat" fill="#12191a">
+                  <rect x="318" y="166" width="14" height="5" />
+                  <rect x="330" y="160" width="4" height="7" />
+                  <rect x="330" y="156" width="2" height="4" />
+                  <rect x="334" y="156" width="2" height="4" />
+                </g>
+              </g>
+            </svg>
+          </div>
+
+          <div class="pro-vignette"></div>
+        </div>
+        <div class="prologue-body">
+          <div class="prologue-copy">
+            <div class="prologue-kicker" id="prologueKicker">城里 · 出租屋</div>
+            <h2 class="prologue-title" id="prologueTitle">简历又没回音</h2>
+            <p class="prologue-text" id="prologueText">面试没几个，房租可一天没停。</p>
+          </div>
+          <div class="prologue-foot">
+            <button id="prologueNext" class="prologue-next" type="button">跳过</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div id="toasts" aria-live="polite"></div>
+
+    <div id="zoomPad">
+      <button id="zoomIn" type="button" aria-label="放大">＋</button>
+      <button id="zoomOut" type="button" aria-label="缩小">－</button>
+      <button id="btnRecenter" type="button" aria-label="回到小镇">中</button>
+    </div>
+
+    <button id="cancelTool" class="cancel-tool" type="button" hidden>退出建造 ×</button>
+
+    <div id="placeBar" class="place-bar" hidden role="group" aria-label="确认放置位置">
+      <button id="placeCancel" class="place-btn cancel" type="button">✗ 取消</button>
+      <button id="placeConfirm" class="place-btn confirm" type="button">✓ 放置</button>
+    </div>
+
+    <div id="dock">
+      <div class="dock-head">
+        <div id="catTabs" class="tabs" role="tablist" aria-label="建造分类"></div>
+        <div class="dock-tools">
+          <button class="tool-btn" data-tool="road" type="button" title="道路 12 / 木桥 80"><span class="glyph">道</span><span>道路</span><em>12·80</em></button>
+          <button class="tool-btn" data-tool="pave" type="button"><span class="glyph">铺</span><span>铺地</span><em>6</em></button>
+          <button class="tool-btn" data-tool="demolish" type="button"><span class="glyph">拆</span><span>拆除</span></button>
+          <button id="btnRotate" class="tool-btn rotate-btn" type="button" aria-label="旋转建筑朝向"><span class="glyph">转</span><span>朝向</span><em>Q</em></button>
+        </div>
+      </div>
+      <div id="roadStyles" class="road-styles" role="radiogroup" aria-label="路面样式" hidden></div>
+      <div id="cards" class="cards"></div>
+    </div>
+
+    <div id="scrim" hidden></div>
+
+    <section id="missionPanel" class="drawer" aria-label="目标列表">
+      <div class="drawer-head">
+        <div><small>MISSIONS</small><h2>小镇目标</h2></div>
+        <button class="close-btn" data-close="missionPanel" type="button" aria-label="关闭">×</button>
+      </div>
+      <div id="missionList" class="drawer-body"></div>
+    </section>
+
+    <section id="storePanel" class="drawer" aria-label="仓库">
+      <div class="drawer-head">
+        <div><small>PANTRY</small><h2>仓库</h2></div>
+        <button class="close-btn" data-close="storePanel" type="button" aria-label="关闭">×</button>
+      </div>
+      <div id="storeList" class="drawer-body"></div>
+    </section>
+
+    <section id="reviewPanel" class="drawer" aria-label="评分与地块">
+      <div class="drawer-head">
+        <div><small>SCORE BOARD</small><h2>评分与地块</h2></div>
+        <button class="close-btn" data-close="reviewPanel" type="button" aria-label="关闭">×</button>
+      </div>
+      <div id="reviewList" class="drawer-body"></div>
+    </section>
+
+    <section id="menuPanel" class="drawer" aria-label="菜单">
+      <div class="drawer-head">
+        <div><small>MENU</small><h2>菜单</h2></div>
+        <button class="close-btn" data-close="menuPanel" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="drawer-body">
+        <div class="menu-block">
+          <button id="btnSave" class="menu-row" type="button"><span>保存进度</span><em>现在</em></button>
+          <button id="btnHelp" class="menu-row" type="button"><span>怎么玩</span><em>说明</em></button>
+          <button id="btnToggleMusic" class="menu-row" type="button"><span>背景音乐</span><em id="musicState">开</em></button>
+          <button id="btnToggleSound" class="menu-row" type="button"><span>音效</span><em id="soundState">开</em></button>
+        </div>
+        <div class="menu-block">
+          <button id="btnDev" class="menu-row" type="button"><span>开发者模式</span><em>本地测试</em></button>
+        </div>
+        <div class="menu-block">
+          <button id="btnReset" class="menu-row danger" type="button"><span>重新开始</span><em>清空存档</em></button>
+        </div>
+        <div class="menu-note">
+          <b>操作</b>
+          <p>拖拽移动 / 双指或滚轮缩放 / 点击放置。道路与拆除可拖动连续操作；建造时按 Q / E 或点“朝向”旋转 90°，只改变外观。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="devPanel" class="drawer" aria-label="开发者模式">
+      <div class="drawer-head">
+        <div><small>DEVELOPER</small><h2>开发者模式</h2></div>
+        <button class="close-btn" data-close="devPanel" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="drawer-body dev-body">
+        <div id="devStatus" class="dev-status"></div>
+        <p class="dev-tip">测试开关只在当前运行中生效，不写入存档；数值改动会随自动保存落盘。</p>
+
+        <div class="dev-group">
+          <h3>经济与仓库</h3>
+          <div class="dev-grid">
+            <button class="dev-btn" data-dev="coins-10k" type="button">金币 +1 万</button>
+            <button class="dev-btn" data-dev="coins-max" type="button">金币 100 万</button>
+            <button class="dev-btn" data-dev="res-20" type="button">全资源 +20</button>
+            <button class="dev-btn" data-dev="res-max" type="button">全资源 +100</button>
+            <button class="dev-btn" data-dev="res-clear" type="button">清空仓库</button>
+          </div>
+        </div>
+
+        <div class="dev-group">
+          <h3>评分与等级</h3>
+          <div class="dev-grid">
+            <button class="dev-btn" data-dev="review-100" type="button">评分 +100</button>
+            <button class="dev-btn" data-dev="review-1000" type="button">评分 +1000</button>
+            <button class="dev-btn" data-dev="level-down" type="button">等级 −1</button>
+            <button class="dev-btn" data-dev="level-up" type="button">等级 +1</button>
+            <button class="dev-btn" data-dev="level-max" type="button">解锁全部地块（Lv.10）</button>
+            <button class="dev-btn" data-dev="review-reset" type="button">评分清零</button>
+          </div>
+        </div>
+
+        <div class="dev-group">
+          <h3>流程与引导</h3>
+          <div class="dev-grid">
+            <button class="dev-btn" data-dev="finish-builds" type="button">完成全部施工</button>
+            <button class="dev-btn" data-dev="spawn" type="button">顾客立刻进镇</button>
+            <button class="dev-btn" data-dev="speed-boost" type="button">3× 加速 10 分钟</button>
+            <button class="dev-btn" data-dev="speed-5" type="button">5× 加速（开发者）</button>
+            <button class="dev-btn" data-dev="skip-intro" type="button">跳过新手引导</button>
+            <button class="dev-btn" data-dev="replay-intro" type="button">重看新手引导</button>
+            <button class="dev-btn" data-dev="toggle-guide" type="button">隐藏引导提示</button>
+          </div>
+        </div>
+
+        <div class="dev-group">
+          <h3>危险操作</h3>
+          <div class="dev-grid">
+            <button class="dev-btn danger" data-dev="clear-customers" type="button">清空场上顾客</button>
+            <button class="dev-btn danger" data-dev="reset" type="button">重开一局</button>
+          </div>
+        </div>
+
+        <p class="dev-tip">控制台入口：<code>__town.dev</code></p>
+      </div>
+    </section>
+
+    <div id="modal" class="modal" hidden>
+      <div id="modalCard" class="modal-card"></div>
+    </div>
+
+    <div id="rotate">
+      <div class="rotate-phone" aria-hidden="true"><span></span></div>
+      <h2>请横屏游玩</h2>
+      <p>小镇按横屏 2:1 等距设计</p>
+    </div>
+  </div>
+
+  <div class="crt" aria-hidden="true"></div>
+
+  <div id="boot" class="boot">
+    <div class="boot-mark">油炸<br>小镇</div>
+    <div class="boot-bar"><i></i></div>
+    <p>预渲染精灵装载中…</p>
+  </div>
+
+  <div id="fatal" class="fatal" hidden>
+    <h2>装载失败</h2>
+    <p id="fatalText">地图或精灵图集没有找到。</p>
+    <button onclick="location.reload()" type="button">重试</button>
+  </div>
+
+  <script src="./assets/atlas-data.js"></script>
+  <script type="module" src="./src/game.js"></script>
+</body>
+</html>

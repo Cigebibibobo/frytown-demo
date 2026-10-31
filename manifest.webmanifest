@@ -1,0 +1,19 @@
+{
+  "name": "油炸小镇 FRYTOWN",
+  "short_name": "油炸小镇",
+  "description": "十六地块等距美食岛经营沙盒",
+  "lang": "zh-CN",
+  "start_url": "./play.html",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "background_color": "#0b0e14",
+  "theme_color": "#0b0e14",
+  "icons": [
+    { "src": "./assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./assets/icon-1024.png", "sizes": "1024x1024", "type": "image/png" },
+    { "src": "./assets/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "./assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
